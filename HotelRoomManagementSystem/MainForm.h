@@ -712,6 +712,122 @@ namespace HotelRoomManagementSystem {
 			}
 		}
 
+		void UpdateRoomStatusAfterMaintenance(int roomId, String^ workStatus)
+		{
+			Room^ room = FindRoom(roomId);
+			if (room == nullptr) {
+				return;
+			}
+
+			if (workStatus == L"В роботі") {
+				room->Status = L"Ремонт";
+				return;
+			}
+
+			if (!HasActiveBookingForRoom(roomId, 0)) {
+				room->Status = L"Вільний";
+			}
+		}
+
+		List<Room^>^ GetAvailableRooms(int editedBookingId)
+		{
+			List<Room^>^ availableRooms = gcnew List<Room^>();
+
+			for each (Room^ room in rooms) {
+				bool usedByOtherActiveBooking = false;
+
+				for each (Booking^ booking in bookings) {
+					if (booking->Id != editedBookingId && booking->RoomId == room->Id && booking->Status == L"Активне") {
+						usedByOtherActiveBooking = true;
+						break;
+					}
+				}
+
+				if (room->Status != L"Ремонт" && room->Status != L"Зайнятий" && !usedByOtherActiveBooking) {
+					availableRooms->Add(room);
+				}
+			}
+
+			return availableRooms;
+		}
+
+		bool HasActiveBookingForRoom(int roomId, int ignoredBookingId)
+		{
+			for each (Booking^ booking in bookings) {
+				if (booking->Id != ignoredBookingId && booking->RoomId == roomId && booking->Status == L"Активне") {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool IsBookingAllowed(int roomId, String^ status, int editedBookingId)
+		{
+			if (status != L"Активне") {
+				return true;
+			}
+
+			Room^ room = FindRoom(roomId);
+			if (room == nullptr) {
+				MessageBox::Show(L"Обраний номер не знайдено.");
+				return false;
+			}
+
+			if (room->Status == L"Ремонт" || room->Status == L"Зайнятий") {
+				MessageBox::Show(L"Цей номер недоступний для бронювання.");
+				return false;
+			}
+
+			if (HasActiveBookingForRoom(roomId, editedBookingId)) {
+				MessageBox::Show(L"Цей номер вже має активне бронювання.");
+				return false;
+			}
+
+			return true;
+		}
+
+		bool HasBookingsForRoom(int roomId)
+		{
+			for each (Booking^ booking in bookings) {
+				if (booking->RoomId == roomId) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool HasBookingsForGuest(int guestId)
+		{
+			for each (Booking^ booking in bookings) {
+				if (booking->GuestId == guestId) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		void RefreshRoomStatuses()
+		{
+			for each (Room^ room in rooms) {
+				if (room->Status == L"Заброньований" && !HasActiveBookingForRoom(room->Id, 0)) {
+					room->Status = L"Вільний";
+				}
+			}
+
+			for each (Booking^ booking in bookings) {
+				UpdateRoomStatusAfterBooking(booking);
+			}
+
+			for each (MaintenanceTask^ task in maintenanceTasks) {
+				if (task->Status == L"В роботі") {
+					UpdateRoomStatusAfterMaintenance(task->RoomId, task->Status);
+				}
+			}
+		}
+
 		void AddRoom()
 		{
 			if (!IsAdmin()) return;
@@ -730,11 +846,17 @@ namespace HotelRoomManagementSystem {
 			AddRoomForm^ form = gcnew AddRoomForm();
 			form->LoadRoom(room);
 			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				if ((form->RoomStatus == L"Ремонт" || form->RoomStatus == L"Зайнятий") && HasActiveBookingForRoom(room->Id, 0)) {
+					MessageBox::Show(L"Неможливо встановити цей статус, бо номер має активне бронювання.");
+					return;
+				}
+
 				room->Number = form->RoomNumber;
 				room->Type = form->RoomType;
 				room->Capacity = form->Capacity;
 				room->PricePerNight = form->PricePerNight;
 				room->Status = form->RoomStatus;
+				RefreshRoomStatuses();
 				SaveData();
 				ShowRooms();
 			}
@@ -769,14 +891,20 @@ namespace HotelRoomManagementSystem {
 
 		void AddBooking()
 		{
-			if (guests->Count == 0 || rooms->Count == 0) {
-				MessageBox::Show(L"Для бронювання потрібен хоча б один гість і один номер.");
+			List<Room^>^ availableRooms = GetAvailableRooms(0);
+
+			if (guests->Count == 0 || availableRooms->Count == 0) {
+				MessageBox::Show(L"Для бронювання потрібен хоча б один гість і один доступний номер.");
 				return;
 			}
 
 			NewBookingForm^ form = gcnew NewBookingForm();
-			form->LoadOptions(guests, rooms);
+			form->LoadOptions(guests, availableRooms);
 			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				if (!IsBookingAllowed(form->RoomId, form->BookingStatus, 0)) {
+					return;
+				}
+
 				Booking^ booking = gcnew Booking(nextBookingId++, form->GuestId, form->RoomId, form->CheckIn, form->CheckOut, form->BookingStatus);
 				bookings->Add(booking);
 				UpdateRoomStatusAfterBooking(booking);
@@ -789,16 +917,22 @@ namespace HotelRoomManagementSystem {
 		{
 			Booking^ booking = FindBooking(id);
 			if (booking == nullptr) return;
+			List<Room^>^ availableRooms = GetAvailableRooms(booking->Id);
+
 			NewBookingForm^ form = gcnew NewBookingForm();
-			form->LoadOptions(guests, rooms);
+			form->LoadOptions(guests, availableRooms);
 			form->LoadBooking(booking);
 			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				if (!IsBookingAllowed(form->RoomId, form->BookingStatus, booking->Id)) {
+					return;
+				}
+
 				booking->GuestId = form->GuestId;
 				booking->RoomId = form->RoomId;
 				booking->CheckIn = form->CheckIn;
 				booking->CheckOut = form->CheckOut;
 				booking->Status = form->BookingStatus;
-				UpdateRoomStatusAfterBooking(booking);
+				RefreshRoomStatuses();
 				SaveData();
 				ShowBookings();
 			}
@@ -836,7 +970,13 @@ namespace HotelRoomManagementSystem {
 			MaintainanceForm^ form = gcnew MaintainanceForm();
 			form->LoadOptions(rooms, employees);
 			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				if (form->WorkStatus == L"В роботі" && HasActiveBookingForRoom(form->RoomId, 0)) {
+					MessageBox::Show(L"Неможливо створити ремонтну заявку для активно заброньованого номера.");
+					return;
+				}
+
 				maintenanceTasks->Add(gcnew MaintenanceTask(nextMaintenanceId++, form->RoomId, form->Executor, form->WorkStatus, form->Details));
+				UpdateRoomStatusAfterMaintenance(form->RoomId, form->WorkStatus);
 				SaveData();
 				ShowMaintenance();
 			}
@@ -850,10 +990,19 @@ namespace HotelRoomManagementSystem {
 			form->LoadOptions(rooms, employees);
 			form->LoadTask(task);
 			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				if (form->WorkStatus == L"В роботі" && HasActiveBookingForRoom(form->RoomId, 0)) {
+					MessageBox::Show(L"Неможливо поставити в ремонт активно заброньований номер.");
+					return;
+				}
+
+				int previousRoomId = task->RoomId;
 				task->RoomId = form->RoomId;
 				task->Executor = form->Executor;
 				task->Status = form->WorkStatus;
 				task->Details = form->Details;
+				UpdateRoomStatusAfterMaintenance(previousRoomId, L"Виконано");
+				UpdateRoomStatusAfterMaintenance(task->RoomId, task->Status);
+				RefreshRoomStatuses();
 				SaveData();
 				ShowMaintenance();
 			}
@@ -871,19 +1020,32 @@ namespace HotelRoomManagementSystem {
 			}
 
 			if (currentSection == L"rooms") {
+				if (HasBookingsForRoom(id)) {
+					MessageBox::Show(L"Неможливо видалити номер, бо з ним пов'язані бронювання.");
+					return;
+				}
 				rooms->Remove(FindRoom(id));
 			}
 			else if (currentSection == L"guests") {
+				if (HasBookingsForGuest(id)) {
+					MessageBox::Show(L"Неможливо видалити гостя, бо з ним пов'язані бронювання.");
+					return;
+				}
 				guests->Remove(FindGuest(id));
 			}
 			else if (currentSection == L"bookings") {
 				bookings->Remove(FindBooking(id));
+				RefreshRoomStatuses();
 			}
 			else if (currentSection == L"services") {
 				services->Remove(FindService(id));
 			}
 			else {
-				maintenanceTasks->Remove(FindMaintenanceTask(id));
+				MaintenanceTask^ task = FindMaintenanceTask(id);
+				int roomId = task == nullptr ? 0 : task->RoomId;
+				maintenanceTasks->Remove(task);
+				UpdateRoomStatusAfterMaintenance(roomId, L"Виконано");
+				RefreshRoomStatuses();
 			}
 
 			SaveData();
