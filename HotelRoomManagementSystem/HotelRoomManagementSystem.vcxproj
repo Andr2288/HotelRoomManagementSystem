@@ -118,6 +118,7 @@
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
   </ItemGroup>
@@ -136,6 +137,8 @@
     <ClInclude Include="AddRoomForm.h">
       <FileType>CppForm</FileType>
     </ClInclude>
+    <ClInclude Include="HotelModels.h" />
+    <ClInclude Include="JsonDataUtility.h" />
     <ClInclude Include="MainForm.h">
       <FileType>CppForm</FileType>
     </ClInclude>

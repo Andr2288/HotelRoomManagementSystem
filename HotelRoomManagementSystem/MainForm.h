@@ -1,5 +1,6 @@
 #pragma once
 #include "HotelModels.h"
+#include "JsonDataUtility.h"
 #include "AddRoomForm.h"
 #include "Add GuestForm.h"
 #include "NewBookingForm.h"
@@ -428,6 +429,20 @@ namespace HotelRoomManagementSystem {
 			maintenanceTasks = gcnew List<MaintenanceTask^>();
 			employees = gcnew array<String^> { L"Іваненко І.І.", L"Петренко П.П.", L"Сидоренко О.О." };
 
+			if (JsonDataUtility::LoadData(
+				rooms,
+				guests,
+				bookings,
+				services,
+				maintenanceTasks,
+				nextRoomId,
+				nextGuestId,
+				nextBookingId,
+				nextServiceId,
+				nextMaintenanceId)) {
+				return;
+			}
+
 			rooms->Add(gcnew Room(1, L"101", L"Стандарт", 2, 1200, L"Вільний"));
 			rooms->Add(gcnew Room(2, L"102", L"Стандарт", 2, 1200, L"Заброньований"));
 			rooms->Add(gcnew Room(3, L"201", L"Люкс", 3, 2600, L"Зайнятий"));
@@ -451,6 +466,24 @@ namespace HotelRoomManagementSystem {
 			nextBookingId = 3;
 			nextServiceId = 4;
 			nextMaintenanceId = 2;
+
+			SaveData();
+		}
+
+		void SaveData()
+		{
+			JsonDataUtility::SaveData(
+				rooms,
+				guests,
+				bookings,
+				services,
+				maintenanceTasks,
+				nextRoomId,
+				nextGuestId,
+				nextBookingId,
+				nextServiceId,
+				nextMaintenanceId
+			);
 		}
 
 		void PrepareGrid()
@@ -685,6 +718,7 @@ namespace HotelRoomManagementSystem {
 			AddRoomForm^ form = gcnew AddRoomForm();
 			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
 				rooms->Add(gcnew Room(nextRoomId++, form->RoomNumber, form->RoomType, form->Capacity, form->PricePerNight, form->RoomStatus));
+				SaveData();
 				ShowRooms();
 			}
 		}
@@ -701,6 +735,7 @@ namespace HotelRoomManagementSystem {
 				room->Capacity = form->Capacity;
 				room->PricePerNight = form->PricePerNight;
 				room->Status = form->RoomStatus;
+				SaveData();
 				ShowRooms();
 			}
 		}
@@ -711,6 +746,7 @@ namespace HotelRoomManagementSystem {
 			AddGuestForm^ form = gcnew AddGuestForm();
 			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
 				guests->Add(gcnew Guest(nextGuestId++, form->FullName, form->Phone, form->Document, form->Email));
+				SaveData();
 				ShowGuests();
 			}
 		}
@@ -726,6 +762,7 @@ namespace HotelRoomManagementSystem {
 				guest->Phone = form->Phone;
 				guest->Document = form->Document;
 				guest->Email = form->Email;
+				SaveData();
 				ShowGuests();
 			}
 		}
@@ -743,6 +780,7 @@ namespace HotelRoomManagementSystem {
 				Booking^ booking = gcnew Booking(nextBookingId++, form->GuestId, form->RoomId, form->CheckIn, form->CheckOut, form->BookingStatus);
 				bookings->Add(booking);
 				UpdateRoomStatusAfterBooking(booking);
+				SaveData();
 				ShowBookings();
 			}
 		}
@@ -761,6 +799,7 @@ namespace HotelRoomManagementSystem {
 				booking->CheckOut = form->CheckOut;
 				booking->Status = form->BookingStatus;
 				UpdateRoomStatusAfterBooking(booking);
+				SaveData();
 				ShowBookings();
 			}
 		}
@@ -771,6 +810,7 @@ namespace HotelRoomManagementSystem {
 			ServiceForm^ form = gcnew ServiceForm();
 			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
 				services->Add(gcnew ServiceItem(nextServiceId++, form->ServiceName, form->Price, form->Category));
+				SaveData();
 				ShowServices();
 			}
 		}
@@ -785,6 +825,7 @@ namespace HotelRoomManagementSystem {
 				service->Name = form->ServiceName;
 				service->Price = form->Price;
 				service->Category = form->Category;
+				SaveData();
 				ShowServices();
 			}
 		}
@@ -796,6 +837,7 @@ namespace HotelRoomManagementSystem {
 			form->LoadOptions(rooms, employees);
 			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
 				maintenanceTasks->Add(gcnew MaintenanceTask(nextMaintenanceId++, form->RoomId, form->Executor, form->WorkStatus, form->Details));
+				SaveData();
 				ShowMaintenance();
 			}
 		}
@@ -812,6 +854,7 @@ namespace HotelRoomManagementSystem {
 				task->Executor = form->Executor;
 				task->Status = form->WorkStatus;
 				task->Details = form->Details;
+				SaveData();
 				ShowMaintenance();
 			}
 		}
@@ -843,6 +886,7 @@ namespace HotelRoomManagementSystem {
 				maintenanceTasks->Remove(FindMaintenanceTask(id));
 			}
 
+			SaveData();
 			RefreshCurrentTable();
 		}
 
