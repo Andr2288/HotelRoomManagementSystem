@@ -150,11 +150,23 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Add GuestForm.resx">
+      <DependentUpon>Add GuestForm.h</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="AddRoomForm.resx">
       <DependentUpon>AddRoomForm.h</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.h</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MaintainanceForm.resx">
+      <DependentUpon>MaintainanceForm.h</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="NewBookingForm.resx">
+      <DependentUpon>NewBookingForm.h</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ServiceForm.resx">
+      <DependentUpon>ServiceForm.h</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
