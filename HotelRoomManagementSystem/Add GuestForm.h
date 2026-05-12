@@ -1,4 +1,5 @@
 #pragma once
+#include "HotelModels.h"
 
 namespace HotelRoomManagementSystem {
 
@@ -15,12 +16,18 @@ namespace HotelRoomManagementSystem {
 	public ref class AddGuestForm : public System::Windows::Forms::Form
 	{
 	public:
+		int GuestId;
+		String^ FullName;
+		String^ Phone;
+		String^ Document;
+		String^ Email;
+
 		AddGuestForm(void)
 		{
 			InitializeComponent();
-			//
-			//TODO: Add the constructor code here
-			//
+			GuestId = 0;
+			submitButton->Click += gcnew System::EventHandler(this, &AddGuestForm::submitButton_Click);
+			cancelButton->Click += gcnew System::EventHandler(this, &AddGuestForm::cancelButton_Click);
 		}
 
 	protected:
@@ -250,5 +257,44 @@ namespace HotelRoomManagementSystem {
 
 		}
 #pragma endregion
+
+	public:
+		void LoadGuest(Guest^ guest)
+		{
+			GuestId = guest->Id;
+			txtFullName->Text = guest->FullName;
+			txtPhone->Text = guest->Phone;
+			txtDocument->Text = guest->Document;
+			txtEmail->Text = guest->Email;
+			label1->Text = L"Редагувати Гостя";
+			submitButton->Text = L"Зберегти";
+		}
+
+	private:
+		System::Void submitButton_Click(System::Object^ sender, System::EventArgs^ e)
+		{
+			if (String::IsNullOrWhiteSpace(txtFullName->Text)) {
+				MessageBox::Show(L"Введіть ПІБ гостя.");
+				return;
+			}
+
+			if (String::IsNullOrWhiteSpace(txtPhone->Text)) {
+				MessageBox::Show(L"Введіть телефон гостя.");
+				return;
+			}
+
+			FullName = txtFullName->Text;
+			Phone = txtPhone->Text;
+			Document = txtDocument->Text;
+			Email = txtEmail->Text;
+			DialogResult = System::Windows::Forms::DialogResult::OK;
+			Close();
+		}
+
+		System::Void cancelButton_Click(System::Object^ sender, System::EventArgs^ e)
+		{
+			DialogResult = System::Windows::Forms::DialogResult::Cancel;
+			Close();
+		}
 	};
 }

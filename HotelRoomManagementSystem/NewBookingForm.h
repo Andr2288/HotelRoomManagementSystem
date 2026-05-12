@@ -1,4 +1,5 @@
 #pragma once
+#include "HotelModels.h"
 
 namespace HotelRoomManagementSystem {
 
@@ -8,6 +9,7 @@ namespace HotelRoomManagementSystem {
 	using namespace System::Windows::Forms;
 	using namespace System::Data;
 	using namespace System::Drawing;
+	using namespace System::Collections::Generic;
 
 	/// <summary>
 	/// Summary for NewBookingForm
@@ -15,12 +17,19 @@ namespace HotelRoomManagementSystem {
 	public ref class NewBookingForm : public System::Windows::Forms::Form
 	{
 	public:
+		int BookingId;
+		int GuestId;
+		int RoomId;
+		DateTime CheckIn;
+		DateTime CheckOut;
+		String^ BookingStatus;
+
 		NewBookingForm(void)
 		{
 			InitializeComponent();
-			//
-			//TODO: Add the constructor code here
-			//
+			BookingId = 0;
+			submitButton->Click += gcnew System::EventHandler(this, &NewBookingForm::submitButton_Click);
+			cancelButton->Click += gcnew System::EventHandler(this, &NewBookingForm::cancelButton_Click);
 		}
 
 	protected:
@@ -277,5 +286,86 @@ namespace HotelRoomManagementSystem {
 
 		}
 #pragma endregion
+
+	public:
+		void LoadOptions(List<Guest^>^ guests, List<Room^>^ rooms)
+		{
+			cmbGuest->Items->Clear();
+			for each (Guest^ guest in guests) {
+				cmbGuest->Items->Add(guest);
+			}
+			if (cmbGuest->Items->Count > 0) {
+				cmbGuest->SelectedIndex = 0;
+			}
+
+			cmbRoom->Items->Clear();
+			for each (Room^ room in rooms) {
+				cmbRoom->Items->Add(room);
+			}
+			if (cmbRoom->Items->Count > 0) {
+				cmbRoom->SelectedIndex = 0;
+			}
+		}
+
+		void LoadBooking(Booking^ booking)
+		{
+			BookingId = booking->Id;
+			dtpCheckIn->Value = booking->CheckIn;
+			dtpCheckInDate->Value = booking->CheckOut;
+			cmbBookingStatus->Text = booking->Status;
+			label1->Text = L"Редагувати Бронювання";
+			submitButton->Text = L"Зберегти";
+
+			for (int i = 0; i < cmbGuest->Items->Count; i++) {
+				Guest^ guest = safe_cast<Guest^>(cmbGuest->Items[i]);
+				if (guest->Id == booking->GuestId) {
+					cmbGuest->SelectedIndex = i;
+					break;
+				}
+			}
+
+			for (int i = 0; i < cmbRoom->Items->Count; i++) {
+				Room^ room = safe_cast<Room^>(cmbRoom->Items[i]);
+				if (room->Id == booking->RoomId) {
+					cmbRoom->SelectedIndex = i;
+					break;
+				}
+			}
+		}
+
+	private:
+		System::Void submitButton_Click(System::Object^ sender, System::EventArgs^ e)
+		{
+			if (cmbGuest->SelectedItem == nullptr) {
+				MessageBox::Show(L"Оберіть гостя.");
+				return;
+			}
+
+			if (cmbRoom->SelectedItem == nullptr) {
+				MessageBox::Show(L"Оберіть номер.");
+				return;
+			}
+
+			if (dtpCheckInDate->Value.Date < dtpCheckIn->Value.Date) {
+				MessageBox::Show(L"Дата виїзду не може бути раніше дати заїзду.");
+				return;
+			}
+
+			Guest^ guest = safe_cast<Guest^>(cmbGuest->SelectedItem);
+			Room^ room = safe_cast<Room^>(cmbRoom->SelectedItem);
+			GuestId = guest->Id;
+			RoomId = room->Id;
+			CheckIn = dtpCheckIn->Value.Date;
+			CheckOut = dtpCheckInDate->Value.Date;
+			BookingStatus = cmbBookingStatus->Text;
+			DialogResult = System::Windows::Forms::DialogResult::OK;
+			Close();
+		}
+
+		System::Void cancelButton_Click(System::Object^ sender, System::EventArgs^ e)
+		{
+			DialogResult = System::Windows::Forms::DialogResult::Cancel;
+			Close();
+		}
 	};
 }

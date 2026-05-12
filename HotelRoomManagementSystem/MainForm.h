@@ -1,4 +1,10 @@
 #pragma once
+#include "HotelModels.h"
+#include "AddRoomForm.h"
+#include "Add GuestForm.h"
+#include "NewBookingForm.h"
+#include "ServiceForm.h"
+#include "MaintainanceForm.h"
 
 namespace HotelRoomManagementSystem {
 
@@ -8,6 +14,7 @@ namespace HotelRoomManagementSystem {
 	using namespace System::Windows::Forms;
 	using namespace System::Data;
 	using namespace System::Drawing;
+	using namespace System::Collections::Generic;
 
 	/// <summary>
 	/// Summary for MainForm
@@ -18,9 +25,12 @@ namespace HotelRoomManagementSystem {
 		MainForm(void)
 		{
 			InitializeComponent();
-			//
-			//TODO: Add the constructor code here
-			//
+			InitializeData();
+			InitializeEvents();
+			currentSection = L"rooms";
+			cmbUserRole->SelectedIndex = 0;
+			ApplyRole();
+			ShowRooms();
 		}
 
 	protected:
@@ -71,6 +81,18 @@ namespace HotelRoomManagementSystem {
 	private: System::Windows::Forms::Label^ lblQuickActions;
 	private: System::Windows::Forms::Label^ label1;
 	private: System::Windows::Forms::DataGridView^ mainDataGridView;
+	private: List<Room^>^ rooms;
+	private: List<Guest^>^ guests;
+	private: List<Booking^>^ bookings;
+	private: List<ServiceItem^>^ services;
+	private: List<MaintenanceTask^>^ maintenanceTasks;
+	private: array<String^>^ employees;
+	private: String^ currentSection;
+	private: int nextRoomId;
+	private: int nextGuestId;
+	private: int nextBookingId;
+	private: int nextServiceId;
+	private: int nextMaintenanceId;
 
 
 
@@ -377,5 +399,499 @@ namespace HotelRoomManagementSystem {
 
 		}
 #pragma endregion
+
+	private:
+		void InitializeEvents()
+		{
+			btnNavRooms->Click += gcnew System::EventHandler(this, &MainForm::btnNavRooms_Click);
+			btnNavGuests->Click += gcnew System::EventHandler(this, &MainForm::btnNavGuests_Click);
+			btnNavBookings->Click += gcnew System::EventHandler(this, &MainForm::btnNavBookings_Click);
+			btnNavServices->Click += gcnew System::EventHandler(this, &MainForm::btnNavServices_Click);
+			btnNavMaintenance->Click += gcnew System::EventHandler(this, &MainForm::btnNavMaintenance_Click);
+
+			btnQuickAddRoom->Click += gcnew System::EventHandler(this, &MainForm::btnQuickAddRoom_Click);
+			btnQuickAddGuest->Click += gcnew System::EventHandler(this, &MainForm::btnQuickAddGuest_Click);
+			btnQuickNewBooking->Click += gcnew System::EventHandler(this, &MainForm::btnQuickNewBooking_Click);
+			btnQuickAddService->Click += gcnew System::EventHandler(this, &MainForm::btnQuickAddService_Click);
+			btnQuickRepairRequest->Click += gcnew System::EventHandler(this, &MainForm::btnQuickRepairRequest_Click);
+
+			cmbUserRole->SelectedIndexChanged += gcnew System::EventHandler(this, &MainForm::cmbUserRole_SelectedIndexChanged);
+			mainDataGridView->CellContentClick += gcnew DataGridViewCellEventHandler(this, &MainForm::mainDataGridView_CellContentClick);
+		}
+
+		void InitializeData()
+		{
+			rooms = gcnew List<Room^>();
+			guests = gcnew List<Guest^>();
+			bookings = gcnew List<Booking^>();
+			services = gcnew List<ServiceItem^>();
+			maintenanceTasks = gcnew List<MaintenanceTask^>();
+			employees = gcnew array<String^> { L"Іваненко І.І.", L"Петренко П.П.", L"Сидоренко О.О." };
+
+			rooms->Add(gcnew Room(1, L"101", L"Стандарт", 2, 1200, L"Вільний"));
+			rooms->Add(gcnew Room(2, L"102", L"Стандарт", 2, 1200, L"Заброньований"));
+			rooms->Add(gcnew Room(3, L"201", L"Люкс", 3, 2600, L"Зайнятий"));
+			rooms->Add(gcnew Room(4, L"301", L"Сімейний", 4, 3200, L"Вільний"));
+			rooms->Add(gcnew Room(5, L"010", L"Економ", 1, 800, L"Ремонт"));
+
+			guests->Add(gcnew Guest(1, L"Коваль Андрій", L"+380501112233", L"AA123456", L"koval@example.com"));
+			guests->Add(gcnew Guest(2, L"Мельник Олена", L"+380671234567", L"BK998877", L"melnyk@example.com"));
+
+			bookings->Add(gcnew Booking(1, 1, 2, DateTime(2026, 5, 15), DateTime(2026, 5, 17), L"Активне"));
+			bookings->Add(gcnew Booking(2, 2, 3, DateTime(2026, 5, 10), DateTime(2026, 5, 12), L"Оплачено"));
+
+			services->Add(gcnew ServiceItem(1, L"Сніданок", 250, L"Харчування"));
+			services->Add(gcnew ServiceItem(2, L"Додаткове прибирання", 180, L"Прибирання"));
+			services->Add(gcnew ServiceItem(3, L"Трансфер з вокзалу", 500, L"Трансфер"));
+
+			maintenanceTasks->Add(gcnew MaintenanceTask(1, 5, L"Іваненко І.І.", L"В роботі", L"Перевірити сантехніку"));
+
+			nextRoomId = 6;
+			nextGuestId = 3;
+			nextBookingId = 3;
+			nextServiceId = 4;
+			nextMaintenanceId = 2;
+		}
+
+		void PrepareGrid()
+		{
+			mainDataGridView->Columns->Clear();
+			mainDataGridView->Rows->Clear();
+			mainDataGridView->AllowUserToAddRows = false;
+			mainDataGridView->ReadOnly = true;
+			mainDataGridView->SelectionMode = DataGridViewSelectionMode::FullRowSelect;
+			mainDataGridView->AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode::Fill;
+		}
+
+		void AddTextColumn(String^ name, String^ header)
+		{
+			DataGridViewTextBoxColumn^ column = gcnew DataGridViewTextBoxColumn();
+			column->Name = name;
+			column->HeaderText = header;
+			mainDataGridView->Columns->Add(column);
+		}
+
+		void AddActionColumns()
+		{
+			DataGridViewButtonColumn^ editColumn = gcnew DataGridViewButtonColumn();
+			editColumn->Name = L"EditButton";
+			editColumn->HeaderText = L"";
+			editColumn->Text = L"Редагувати";
+			editColumn->UseColumnTextForButtonValue = true;
+			mainDataGridView->Columns->Add(editColumn);
+
+			DataGridViewButtonColumn^ deleteColumn = gcnew DataGridViewButtonColumn();
+			deleteColumn->Name = L"DeleteButton";
+			deleteColumn->HeaderText = L"";
+			deleteColumn->Text = L"Видалити";
+			deleteColumn->UseColumnTextForButtonValue = true;
+			mainDataGridView->Columns->Add(deleteColumn);
+		}
+
+		void HideIdColumn()
+		{
+			if (mainDataGridView->Columns->Contains(L"Id")) {
+				mainDataGridView->Columns[L"Id"]->Visible = false;
+			}
+		}
+
+		bool IsAdmin()
+		{
+			return cmbUserRole->SelectedIndex == 0;
+		}
+
+		void ApplyRole()
+		{
+			bool isAdmin = IsAdmin();
+			btnQuickAddRoom->Enabled = isAdmin;
+			btnQuickAddGuest->Enabled = isAdmin;
+			btnQuickAddService->Enabled = isAdmin;
+			btnQuickRepairRequest->Enabled = isAdmin;
+		}
+
+		void RefreshCurrentTable()
+		{
+			if (currentSection == L"rooms") ShowRooms();
+			else if (currentSection == L"guests") ShowGuests();
+			else if (currentSection == L"bookings") ShowBookings();
+			else if (currentSection == L"services") ShowServices();
+			else ShowMaintenance();
+		}
+
+		void ShowRooms()
+		{
+			currentSection = L"rooms";
+			label1->Text = L"Таблиця Номерів";
+			PrepareGrid();
+			AddTextColumn(L"Id", L"Id");
+			AddTextColumn(L"Number", L"Номер");
+			AddTextColumn(L"Type", L"Тип");
+			AddTextColumn(L"Capacity", L"Місць");
+			AddTextColumn(L"Price", L"Ціна");
+			AddTextColumn(L"Status", L"Статус");
+			AddActionColumns();
+
+			for each (Room^ room in rooms) {
+				mainDataGridView->Rows->Add(room->Id, room->Number, room->Type, room->Capacity, room->PricePerNight, room->Status);
+			}
+			HideIdColumn();
+		}
+
+		void ShowGuests()
+		{
+			currentSection = L"guests";
+			label1->Text = L"Таблиця Гостей";
+			PrepareGrid();
+			AddTextColumn(L"Id", L"Id");
+			AddTextColumn(L"FullName", L"ПІБ");
+			AddTextColumn(L"Phone", L"Телефон");
+			AddTextColumn(L"Document", L"Документ");
+			AddTextColumn(L"Email", L"Email");
+			AddActionColumns();
+
+			for each (Guest^ guest in guests) {
+				mainDataGridView->Rows->Add(guest->Id, guest->FullName, guest->Phone, guest->Document, guest->Email);
+			}
+			HideIdColumn();
+		}
+
+		void ShowBookings()
+		{
+			currentSection = L"bookings";
+			label1->Text = L"Таблиця Бронювань";
+			PrepareGrid();
+			AddTextColumn(L"Id", L"Id");
+			AddTextColumn(L"Guest", L"Гість");
+			AddTextColumn(L"Room", L"Номер");
+			AddTextColumn(L"CheckIn", L"Заїзд");
+			AddTextColumn(L"CheckOut", L"Виїзд");
+			AddTextColumn(L"Amount", L"Сума");
+			AddTextColumn(L"Status", L"Статус");
+			AddActionColumns();
+
+			for each (Booking^ booking in bookings) {
+				Guest^ guest = FindGuest(booking->GuestId);
+				Room^ room = FindRoom(booking->RoomId);
+				mainDataGridView->Rows->Add(
+					booking->Id,
+					guest == nullptr ? L"Невідомо" : guest->FullName,
+					room == nullptr ? L"Невідомо" : room->Number,
+					booking->CheckIn.ToShortDateString(),
+					booking->CheckOut.ToShortDateString(),
+					CalculateBookingAmount(booking),
+					booking->Status
+				);
+			}
+			HideIdColumn();
+		}
+
+		void ShowServices()
+		{
+			currentSection = L"services";
+			label1->Text = L"Таблиця Послуг";
+			PrepareGrid();
+			AddTextColumn(L"Id", L"Id");
+			AddTextColumn(L"Name", L"Назва");
+			AddTextColumn(L"Price", L"Ціна");
+			AddTextColumn(L"Category", L"Категорія");
+			AddActionColumns();
+
+			for each (ServiceItem^ service in services) {
+				mainDataGridView->Rows->Add(service->Id, service->Name, service->Price, service->Category);
+			}
+			HideIdColumn();
+		}
+
+		void ShowMaintenance()
+		{
+			currentSection = L"maintenance";
+			label1->Text = L"Таблиця Обслуговування";
+			PrepareGrid();
+			AddTextColumn(L"Id", L"Id");
+			AddTextColumn(L"Room", L"Номер");
+			AddTextColumn(L"Details", L"Опис");
+			AddTextColumn(L"Executor", L"Виконавець");
+			AddTextColumn(L"Status", L"Статус");
+			AddActionColumns();
+
+			for each (MaintenanceTask^ task in maintenanceTasks) {
+				Room^ room = FindRoom(task->RoomId);
+				mainDataGridView->Rows->Add(task->Id, room == nullptr ? L"Невідомо" : room->Number, task->Details, task->Executor, task->Status);
+			}
+			HideIdColumn();
+		}
+
+		Room^ FindRoom(int id)
+		{
+			for each (Room^ room in rooms) {
+				if (room->Id == id) return room;
+			}
+			return nullptr;
+		}
+
+		Guest^ FindGuest(int id)
+		{
+			for each (Guest^ guest in guests) {
+				if (guest->Id == id) return guest;
+			}
+			return nullptr;
+		}
+
+		Booking^ FindBooking(int id)
+		{
+			for each (Booking^ booking in bookings) {
+				if (booking->Id == id) return booking;
+			}
+			return nullptr;
+		}
+
+		ServiceItem^ FindService(int id)
+		{
+			for each (ServiceItem^ service in services) {
+				if (service->Id == id) return service;
+			}
+			return nullptr;
+		}
+
+		MaintenanceTask^ FindMaintenanceTask(int id)
+		{
+			for each (MaintenanceTask^ task in maintenanceTasks) {
+				if (task->Id == id) return task;
+			}
+			return nullptr;
+		}
+
+		double CalculateBookingAmount(Booking^ booking)
+		{
+			Room^ room = FindRoom(booking->RoomId);
+			if (room == nullptr) return 0;
+
+			TimeSpan period = booking->CheckOut - booking->CheckIn;
+			int days = Math::Max(1, Convert::ToInt32(Math::Ceiling(period.TotalDays)));
+			return days * room->PricePerNight;
+		}
+
+		void UpdateRoomStatusAfterBooking(Booking^ booking)
+		{
+			Room^ room = FindRoom(booking->RoomId);
+			if (room != nullptr && booking->Status == L"Активне") {
+				room->Status = L"Заброньований";
+			}
+		}
+
+		void AddRoom()
+		{
+			if (!IsAdmin()) return;
+			AddRoomForm^ form = gcnew AddRoomForm();
+			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				rooms->Add(gcnew Room(nextRoomId++, form->RoomNumber, form->RoomType, form->Capacity, form->PricePerNight, form->RoomStatus));
+				ShowRooms();
+			}
+		}
+
+		void EditRoom(int id)
+		{
+			Room^ room = FindRoom(id);
+			if (room == nullptr) return;
+			AddRoomForm^ form = gcnew AddRoomForm();
+			form->LoadRoom(room);
+			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				room->Number = form->RoomNumber;
+				room->Type = form->RoomType;
+				room->Capacity = form->Capacity;
+				room->PricePerNight = form->PricePerNight;
+				room->Status = form->RoomStatus;
+				ShowRooms();
+			}
+		}
+
+		void AddGuest()
+		{
+			if (!IsAdmin()) return;
+			AddGuestForm^ form = gcnew AddGuestForm();
+			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				guests->Add(gcnew Guest(nextGuestId++, form->FullName, form->Phone, form->Document, form->Email));
+				ShowGuests();
+			}
+		}
+
+		void EditGuest(int id)
+		{
+			Guest^ guest = FindGuest(id);
+			if (guest == nullptr) return;
+			AddGuestForm^ form = gcnew AddGuestForm();
+			form->LoadGuest(guest);
+			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				guest->FullName = form->FullName;
+				guest->Phone = form->Phone;
+				guest->Document = form->Document;
+				guest->Email = form->Email;
+				ShowGuests();
+			}
+		}
+
+		void AddBooking()
+		{
+			if (guests->Count == 0 || rooms->Count == 0) {
+				MessageBox::Show(L"Для бронювання потрібен хоча б один гість і один номер.");
+				return;
+			}
+
+			NewBookingForm^ form = gcnew NewBookingForm();
+			form->LoadOptions(guests, rooms);
+			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				Booking^ booking = gcnew Booking(nextBookingId++, form->GuestId, form->RoomId, form->CheckIn, form->CheckOut, form->BookingStatus);
+				bookings->Add(booking);
+				UpdateRoomStatusAfterBooking(booking);
+				ShowBookings();
+			}
+		}
+
+		void EditBooking(int id)
+		{
+			Booking^ booking = FindBooking(id);
+			if (booking == nullptr) return;
+			NewBookingForm^ form = gcnew NewBookingForm();
+			form->LoadOptions(guests, rooms);
+			form->LoadBooking(booking);
+			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				booking->GuestId = form->GuestId;
+				booking->RoomId = form->RoomId;
+				booking->CheckIn = form->CheckIn;
+				booking->CheckOut = form->CheckOut;
+				booking->Status = form->BookingStatus;
+				UpdateRoomStatusAfterBooking(booking);
+				ShowBookings();
+			}
+		}
+
+		void AddService()
+		{
+			if (!IsAdmin()) return;
+			ServiceForm^ form = gcnew ServiceForm();
+			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				services->Add(gcnew ServiceItem(nextServiceId++, form->ServiceName, form->Price, form->Category));
+				ShowServices();
+			}
+		}
+
+		void EditService(int id)
+		{
+			ServiceItem^ service = FindService(id);
+			if (service == nullptr) return;
+			ServiceForm^ form = gcnew ServiceForm();
+			form->LoadService(service);
+			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				service->Name = form->ServiceName;
+				service->Price = form->Price;
+				service->Category = form->Category;
+				ShowServices();
+			}
+		}
+
+		void AddMaintenanceTask()
+		{
+			if (!IsAdmin()) return;
+			MaintainanceForm^ form = gcnew MaintainanceForm();
+			form->LoadOptions(rooms, employees);
+			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				maintenanceTasks->Add(gcnew MaintenanceTask(nextMaintenanceId++, form->RoomId, form->Executor, form->WorkStatus, form->Details));
+				ShowMaintenance();
+			}
+		}
+
+		void EditMaintenanceTask(int id)
+		{
+			MaintenanceTask^ task = FindMaintenanceTask(id);
+			if (task == nullptr) return;
+			MaintainanceForm^ form = gcnew MaintainanceForm();
+			form->LoadOptions(rooms, employees);
+			form->LoadTask(task);
+			if (form->ShowDialog() == System::Windows::Forms::DialogResult::OK) {
+				task->RoomId = form->RoomId;
+				task->Executor = form->Executor;
+				task->Status = form->WorkStatus;
+				task->Details = form->Details;
+				ShowMaintenance();
+			}
+		}
+
+		void DeleteCurrentItem(int id)
+		{
+			if (!IsAdmin()) {
+				MessageBox::Show(L"Видалення доступне тільки адміністратору.");
+				return;
+			}
+
+			if (MessageBox::Show(L"Видалити запис?", L"Підтвердження", MessageBoxButtons::YesNo) != System::Windows::Forms::DialogResult::Yes) {
+				return;
+			}
+
+			if (currentSection == L"rooms") {
+				rooms->Remove(FindRoom(id));
+			}
+			else if (currentSection == L"guests") {
+				guests->Remove(FindGuest(id));
+			}
+			else if (currentSection == L"bookings") {
+				bookings->Remove(FindBooking(id));
+			}
+			else if (currentSection == L"services") {
+				services->Remove(FindService(id));
+			}
+			else {
+				maintenanceTasks->Remove(FindMaintenanceTask(id));
+			}
+
+			RefreshCurrentTable();
+		}
+
+		void EditCurrentItem(int id)
+		{
+			if (!IsAdmin()) {
+				MessageBox::Show(L"Редагування доступне тільки адміністратору.");
+				return;
+			}
+
+			if (currentSection == L"rooms") EditRoom(id);
+			else if (currentSection == L"guests") EditGuest(id);
+			else if (currentSection == L"bookings") EditBooking(id);
+			else if (currentSection == L"services") EditService(id);
+			else EditMaintenanceTask(id);
+		}
+
+		System::Void btnNavRooms_Click(System::Object^ sender, System::EventArgs^ e) { ShowRooms(); }
+		System::Void btnNavGuests_Click(System::Object^ sender, System::EventArgs^ e) { ShowGuests(); }
+		System::Void btnNavBookings_Click(System::Object^ sender, System::EventArgs^ e) { ShowBookings(); }
+		System::Void btnNavServices_Click(System::Object^ sender, System::EventArgs^ e) { ShowServices(); }
+		System::Void btnNavMaintenance_Click(System::Object^ sender, System::EventArgs^ e) { ShowMaintenance(); }
+
+		System::Void btnQuickAddRoom_Click(System::Object^ sender, System::EventArgs^ e) { AddRoom(); }
+		System::Void btnQuickAddGuest_Click(System::Object^ sender, System::EventArgs^ e) { AddGuest(); }
+		System::Void btnQuickNewBooking_Click(System::Object^ sender, System::EventArgs^ e) { AddBooking(); }
+		System::Void btnQuickAddService_Click(System::Object^ sender, System::EventArgs^ e) { AddService(); }
+		System::Void btnQuickRepairRequest_Click(System::Object^ sender, System::EventArgs^ e) { AddMaintenanceTask(); }
+
+		System::Void cmbUserRole_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e)
+		{
+			ApplyRole();
+			RefreshCurrentTable();
+		}
+
+		System::Void mainDataGridView_CellContentClick(System::Object^ sender, DataGridViewCellEventArgs^ e)
+		{
+			if (e->RowIndex < 0) return;
+
+			String^ columnName = mainDataGridView->Columns[e->ColumnIndex]->Name;
+			if (columnName != L"EditButton" && columnName != L"DeleteButton") return;
+
+			int id = Convert::ToInt32(mainDataGridView->Rows[e->RowIndex]->Cells[L"Id"]->Value);
+			if (columnName == L"EditButton") {
+				EditCurrentItem(id);
+			}
+			else {
+				DeleteCurrentItem(id);
+			}
+		}
 	};
 }

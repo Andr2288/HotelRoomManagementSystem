@@ -1,4 +1,5 @@
 #pragma once
+#include "HotelModels.h"
 
 namespace HotelRoomManagementSystem {
 
@@ -15,12 +16,19 @@ namespace HotelRoomManagementSystem {
 	public ref class AddRoomForm : public System::Windows::Forms::Form
 	{
 	public:
+		int RoomId;
+		String^ RoomNumber;
+		String^ RoomType;
+		int Capacity;
+		double PricePerNight;
+		String^ RoomStatus;
+
 		AddRoomForm(void)
 		{
 			InitializeComponent();
-			//
-			//TODO: Add the constructor code here
-			//
+			RoomId = 0;
+			submitButton->Click += gcnew System::EventHandler(this, &AddRoomForm::submitButton_Click);
+			cancelButton->Click += gcnew System::EventHandler(this, &AddRoomForm::cancelButton_Click);
 		}
 
 	protected:
@@ -286,5 +294,54 @@ namespace HotelRoomManagementSystem {
 
 		}
 #pragma endregion
+
+	public:
+		void LoadRoom(Room^ room)
+		{
+			RoomId = room->Id;
+			txtRoomNumber->Text = room->Number;
+			cmbRoomType->Text = room->Type;
+			txtCapacity->Text = room->Capacity.ToString();
+			txtPricePerNight->Text = room->PricePerNight.ToString();
+			cmbRoomStatus->Text = room->Status;
+			label1->Text = L"Редагувати Номер";
+			submitButton->Text = L"Зберегти";
+		}
+
+	private:
+		System::Void submitButton_Click(System::Object^ sender, System::EventArgs^ e)
+		{
+			int capacity;
+			double price;
+
+			if (String::IsNullOrWhiteSpace(txtRoomNumber->Text)) {
+				MessageBox::Show(L"Введіть номер кімнати.");
+				return;
+			}
+
+			if (!Int32::TryParse(txtCapacity->Text, capacity) || capacity <= 0) {
+				MessageBox::Show(L"Кількість місць має бути числом більше 0.");
+				return;
+			}
+
+			if (!Double::TryParse(txtPricePerNight->Text, price) || price <= 0) {
+				MessageBox::Show(L"Ціна має бути числом більше 0.");
+				return;
+			}
+
+			RoomNumber = txtRoomNumber->Text;
+			RoomType = cmbRoomType->Text;
+			Capacity = capacity;
+			PricePerNight = price;
+			RoomStatus = cmbRoomStatus->Text;
+			DialogResult = System::Windows::Forms::DialogResult::OK;
+			Close();
+		}
+
+		System::Void cancelButton_Click(System::Object^ sender, System::EventArgs^ e)
+		{
+			DialogResult = System::Windows::Forms::DialogResult::Cancel;
+			Close();
+		}
 };
 }

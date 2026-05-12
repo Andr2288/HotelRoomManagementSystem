@@ -1,4 +1,5 @@
 #pragma once
+#include "HotelModels.h"
 
 namespace HotelRoomManagementSystem {
 
@@ -15,12 +16,17 @@ namespace HotelRoomManagementSystem {
 	public ref class ServiceForm : public System::Windows::Forms::Form
 	{
 	public:
+		int ServiceId;
+		String^ ServiceName;
+		double Price;
+		String^ Category;
+
 		ServiceForm(void)
 		{
 			InitializeComponent();
-			//
-			//TODO: Add the constructor code here
-			//
+			ServiceId = 0;
+			submitButton->Click += gcnew System::EventHandler(this, &ServiceForm::submitButton_Click);
+			cancelButton->Click += gcnew System::EventHandler(this, &ServiceForm::cancelButton_Click);
 		}
 
 	protected:
@@ -225,5 +231,44 @@ namespace HotelRoomManagementSystem {
 
 		}
 #pragma endregion
+
+	public:
+		void LoadService(ServiceItem^ service)
+		{
+			ServiceId = service->Id;
+			txtServiceName->Text = service->Name;
+			txtPrice->Text = service->Price.ToString();
+			cmbCategory->Text = service->Category;
+			label1->Text = L"Редагувати Послугу";
+			submitButton->Text = L"Зберегти";
+		}
+
+	private:
+		System::Void submitButton_Click(System::Object^ sender, System::EventArgs^ e)
+		{
+			double price;
+
+			if (String::IsNullOrWhiteSpace(txtServiceName->Text)) {
+				MessageBox::Show(L"Введіть назву послуги.");
+				return;
+			}
+
+			if (!Double::TryParse(txtPrice->Text, price) || price <= 0) {
+				MessageBox::Show(L"Ціна має бути числом більше 0.");
+				return;
+			}
+
+			ServiceName = txtServiceName->Text;
+			Price = price;
+			Category = cmbCategory->Text;
+			DialogResult = System::Windows::Forms::DialogResult::OK;
+			Close();
+		}
+
+		System::Void cancelButton_Click(System::Object^ sender, System::EventArgs^ e)
+		{
+			DialogResult = System::Windows::Forms::DialogResult::Cancel;
+			Close();
+		}
 };
 }

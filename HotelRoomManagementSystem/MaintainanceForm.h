@@ -1,4 +1,5 @@
 #pragma once
+#include "HotelModels.h"
 
 namespace HotelRoomManagementSystem {
 
@@ -8,6 +9,7 @@ namespace HotelRoomManagementSystem {
 	using namespace System::Windows::Forms;
 	using namespace System::Data;
 	using namespace System::Drawing;
+	using namespace System::Collections::Generic;
 
 	/// <summary>
 	/// Summary for MaintainanceForm
@@ -15,12 +17,18 @@ namespace HotelRoomManagementSystem {
 	public ref class MaintainanceForm : public System::Windows::Forms::Form
 	{
 	public:
+		int TaskId;
+		int RoomId;
+		String^ Executor;
+		String^ WorkStatus;
+		String^ Details;
+
 		MaintainanceForm(void)
 		{
 			InitializeComponent();
-			//
-			//TODO: Add the constructor code here
-			//
+			TaskId = 0;
+			submitButton->Click += gcnew System::EventHandler(this, &MaintainanceForm::submitButton_Click);
+			cancelButton->Click += gcnew System::EventHandler(this, &MaintainanceForm::cancelButton_Click);
 		}
 
 	protected:
@@ -249,5 +257,74 @@ namespace HotelRoomManagementSystem {
 
 		}
 #pragma endregion
+
+	public:
+		void LoadOptions(List<Room^>^ rooms, array<String^>^ employees)
+		{
+			cmbRoom->Items->Clear();
+			for each (Room^ room in rooms) {
+				cmbRoom->Items->Add(room);
+			}
+			if (cmbRoom->Items->Count > 0) {
+				cmbRoom->SelectedIndex = 0;
+			}
+
+			cmbExecutor->Items->Clear();
+			for each (String^ employee in employees) {
+				cmbExecutor->Items->Add(employee);
+			}
+			if (cmbExecutor->Items->Count > 0) {
+				cmbExecutor->SelectedIndex = 0;
+			}
+		}
+
+		void LoadTask(MaintenanceTask^ task)
+		{
+			TaskId = task->Id;
+			Executor = task->Executor;
+			WorkStatus = task->Status;
+			Details = task->Details;
+			cmbExecutor->Text = task->Executor;
+			cmbWorkStatus->Text = task->Status;
+			dgvDetails->Text = task->Details;
+			label1->Text = L"Редагувати Заявку";
+			submitButton->Text = L"Зберегти";
+
+			for (int i = 0; i < cmbRoom->Items->Count; i++) {
+				Room^ room = safe_cast<Room^>(cmbRoom->Items[i]);
+				if (room->Id == task->RoomId) {
+					cmbRoom->SelectedIndex = i;
+					break;
+				}
+			}
+		}
+
+	private:
+		System::Void submitButton_Click(System::Object^ sender, System::EventArgs^ e)
+		{
+			if (cmbRoom->SelectedItem == nullptr) {
+				MessageBox::Show(L"Оберіть номер.");
+				return;
+			}
+
+			if (String::IsNullOrWhiteSpace(dgvDetails->Text)) {
+				MessageBox::Show(L"Введіть опис заявки.");
+				return;
+			}
+
+			Room^ room = safe_cast<Room^>(cmbRoom->SelectedItem);
+			RoomId = room->Id;
+			Executor = cmbExecutor->Text;
+			WorkStatus = cmbWorkStatus->Text;
+			Details = dgvDetails->Text;
+			DialogResult = System::Windows::Forms::DialogResult::OK;
+			Close();
+		}
+
+		System::Void cancelButton_Click(System::Object^ sender, System::EventArgs^ e)
+		{
+			DialogResult = System::Windows::Forms::DialogResult::Cancel;
+			Close();
+		}
 	};
 }
